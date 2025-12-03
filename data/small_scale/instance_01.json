@@ -1,0 +1,226 @@
+{
+  "vms": [
+    {
+      "id": 0,
+      "type": "medium",
+      "cpu_demand": 2,
+      "memory_demand": 6,
+      "storage_demand": 81
+    },
+    {
+      "id": 1,
+      "type": "medium",
+      "cpu_demand": 4,
+      "memory_demand": 5,
+      "storage_demand": 92
+    },
+    {
+      "id": 2,
+      "type": "small",
+      "cpu_demand": 1,
+      "memory_demand": 4,
+      "storage_demand": 33
+    },
+    {
+      "id": 3,
+      "type": "medium",
+      "cpu_demand": 2,
+      "memory_demand": 5,
+      "storage_demand": 97
+    },
+    {
+      "id": 4,
+      "type": "large",
+      "cpu_demand": 5,
+      "memory_demand": 12,
+      "storage_demand": 42
+    },
+    {
+      "id": 5,
+      "type": "medium",
+      "cpu_demand": 3,
+      "memory_demand": 8,
+      "storage_demand": 98
+    },
+    {
+      "id": 6,
+      "type": "small",
+      "cpu_demand": 1,
+      "memory_demand": 3,
+      "storage_demand": 51
+    },
+    {
+      "id": 7,
+      "type": "small",
+      "cpu_demand": 2,
+      "memory_demand": 4,
+      "storage_demand": 24
+    },
+    {
+      "id": 8,
+      "type": "medium",
+      "cpu_demand": 4,
+      "memory_demand": 6,
+      "storage_demand": 64
+    },
+    {
+      "id": 9,
+      "type": "large",
+      "cpu_demand": 4,
+      "memory_demand": 10,
+      "storage_demand": 60
+    },
+    {
+      "id": 10,
+      "type": "medium",
+      "cpu_demand": 2,
+      "memory_demand": 5,
+      "storage_demand": 13
+    },
+    {
+      "id": 11,
+      "type": "large",
+      "cpu_demand": 5,
+      "memory_demand": 16,
+      "storage_demand": 99
+    },
+    {
+      "id": 12,
+      "type": "small",
+      "cpu_demand": 2,
+      "memory_demand": 4,
+      "storage_demand": 69
+    },
+    {
+      "id": 13,
+      "type": "small",
+      "cpu_demand": 1,
+      "memory_demand": 4,
+      "storage_demand": 56
+    },
+    {
+      "id": 14,
+      "type": "small",
+      "cpu_demand": 1,
+      "memory_demand": 4,
+      "storage_demand": 59
+    },
+    {
+      "id": 15,
+      "type": "medium",
+      "cpu_demand": 3,
+      "memory_demand": 5,
+      "storage_demand": 13
+    },
+    {
+      "id": 16,
+      "type": "small",
+      "cpu_demand": 1,
+      "memory_demand": 2,
+      "storage_demand": 99
+    },
+    {
+      "id": 17,
+      "type": "medium",
+      "cpu_demand": 3,
+      "memory_demand": 7,
+      "storage_demand": 23
+    },
+    {
+      "id": 18,
+      "type": "medium",
+      "cpu_demand": 4,
+      "memory_demand": 7,
+      "storage_demand": 71
+    },
+    {
+      "id": 19,
+      "type": "medium",
+      "cpu_demand": 2,
+      "memory_demand": 5,
+      "storage_demand": 62
+    },
+    {
+      "id": 20,
+      "type": "medium",
+      "cpu_demand": 2,
+      "memory_demand": 7,
+      "storage_demand": 69
+    },
+    {
+      "id": 21,
+      "type": "medium",
+      "cpu_demand": 2,
+      "memory_demand": 8,
+      "storage_demand": 24
+    },
+    {
+      "id": 22,
+      "type": "small",
+      "cpu_demand": 1,
+      "memory_demand": 3,
+      "storage_demand": 18
+    },
+    {
+      "id": 23,
+      "type": "medium",
+      "cpu_demand": 4,
+      "memory_demand": 6,
+      "storage_demand": 90
+    },
+    {
+      "id": 24,
+      "type": "medium",
+      "cpu_demand": 4,
+      "memory_demand": 4,
+      "storage_demand": 14
+    }
+  ],
+  "pms": [
+    {
+      "id": 0,
+      "type": "medium",
+      "cpu_capacity": 16,
+      "memory_capacity": 32,
+      "storage_capacity": 1000,
+      "power_idle": 100,
+      "power_max": 300
+    },
+    {
+      "id": 1,
+      "type": "large",
+      "cpu_capacity": 32,
+      "memory_capacity": 64,
+      "storage_capacity": 1000,
+      "power_idle": 100,
+      "power_max": 300
+    },
+    {
+      "id": 2,
+      "type": "large",
+      "cpu_capacity": 32,
+      "memory_capacity": 64,
+      "storage_capacity": 1000,
+      "power_idle": 100,
+      "power_max": 300
+    },
+    {
+      "id": 3,
+      "type": "medium",
+      "cpu_capacity": 16,
+      "memory_capacity": 32,
+      "storage_capacity": 1000,
+      "power_idle": 100,
+      "power_max": 300
+    },
+    {
+      "id": 4,
+      "type": "small",
+      "cpu_capacity": 8,
+      "memory_capacity": 16,
+      "storage_capacity": 1000,
+      "power_idle": 100,
+      "power_max": 300
+    }
+  ]
+}
