@@ -16,12 +16,13 @@ from datetime import datetime
 # Add parent directory to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.algorithms.ilp import ILPSolver
+from src.algorithms.nlp_solver import NLPSolver as ILPSolver
 from src.algorithms.ffd import FirstFitDecreasing
 from src.algorithms.bfd import BestFitDecreasing
-from src.algorithms.rls_ffd import RLSFirstFitDecreasing
+from src.algorithms.rls_ffd import RandomizedLocalSearchFFD
 from src.utils.planetlab_loader import PlanetLabLoader
-from src.utils.generators import generate_vms, generate_pms
+from src.utils.vm_generator import generate_vms
+from src.utils.pm_generator import generate_pms
 from src.evaluation.metrics import evaluate_placement
 
 
@@ -131,7 +132,7 @@ def run_experiment_2():
     algorithms = {
         'FFD': FirstFitDecreasing(),
         'BFD': BestFitDecreasing(),
-        'RLS-FFD': RLSFirstFitDecreasing(max_iterations=100)
+        'RLS-FFD': RandomizedLocalSearchFFD(max_iterations=100)
     }
     
     for algo_name, algo in algorithms.items():
@@ -179,7 +180,7 @@ def run_experiment_3():
     algorithms = {
         'FFD': FirstFitDecreasing(),
         'BFD': BestFitDecreasing(),
-        'RLS-FFD': RLSFirstFitDecreasing(max_iterations=100)
+        'RLS-FFD': RandomizedLocalSearchFFD(max_iterations=100)
     }
     
     for algo_name, algo in algorithms.items():
