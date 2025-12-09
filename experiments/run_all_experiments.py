@@ -2,15 +2,16 @@
 Run All Experiments for VM Placement Project
 
 This script runs three experiments:
-1. ILP Baseline (25 VMs, 5 PMs) - with synthetic data
-2. Real Workload (80 VMs, 15 PMs) - with PlanetLab data
-3. Scalability Test (150 VMs, 30 PMs) - with PlanetLab data
+1. ILP Baseline (25 VMs, 5 PMs)
+2. Real Workload (Stress Test) - 80 VMs, 60 PMs
+3. Scalability Test (Stress Test) - 150 VMs, 100 PMs
 """
 
 import sys
 import os
 import json
 import time
+import random
 from datetime import datetime
 
 # Add parent directory to path
@@ -22,7 +23,7 @@ from src.algorithms.bfd import BestFitDecreasing
 from src.algorithms.rls_ffd import RandomizedLocalSearchFFD
 from src.utils.planetlab_loader import PlanetLabLoader
 from src.utils.vm_generator import generate_vms
-from src.utils.pm_generator import generate_pms
+from src.utils.pm_generator import generate_pms, generate_homogeneous_pms
 from src.evaluation.metrics import evaluate_placement
 
 
@@ -33,7 +34,7 @@ def print_header(title):
     print("="*70)
 
 
-def print_results(algo_name, metrics, exec_time):
+def print_results(algo_name, metrics, exec_time, gap=None):
     """Print algorithm results"""
     print(f"\n  >>> {algo_name} Results:")
     print(f"      Active PMs:     {metrics['active_pms']}")
@@ -41,30 +42,72 @@ def print_results(algo_name, metrics, exec_time):
     print(f"      Avg CPU Util:   {metrics['avg_cpu_utilization']:.2f}%")
     print(f"      Avg RAM Util:   {metrics['avg_memory_utilization']:.2f}%")
     print(f"      Execution Time: {exec_time:.4f}s")
+    if gap is not None:
+        print(f"      Gap to Optimal: {gap:.2f}%")
+
+
+def fix_vm_keys(vms):
+    """Fix VM keys from PlanetLab loader."""
+    for vm in vms:
+        if 'cpu' in vm and 'cpu_demand' not in vm:
+            vm['cpu_demand'] = vm['cpu']
+        if 'ram' in vm and 'memory_demand' not in vm:
+            vm['memory_demand'] = vm['ram']
+    return vms
+
+
+def apply_stress_test_logic(vms):
+    """
+    [CRITICAL CHANGE]
+    Modifies VMs to create a 'Hard' Bin Packing instance.
+    Strategy:
+    1. Scale demands to be 'awkward' sizes (e.g. 40-70% of PM capacity).
+    2. Create resource contention (High CPU/Low RAM vs Low CPU/High RAM).
+    """
+    print("  ⚡ Applying STRESS TEST logic (Skewed Resources + Awkward Sizes)...")
+    
+    # Assuming PMs are roughly Small(8), Med(16), Large(32).
+    # We want to target around 12-18 CPU/RAM to be annoying for Medium PMs.
+    
+    for i, vm in enumerate(vms):
+        # Base jitter to keep randomness
+        base_val = random.uniform(10, 20) 
+        
+        if i % 2 == 0:
+            # Type A: CPU Heavy, RAM Light
+            # This requires a Medium(16) or Large(32) PM for CPU, but wastes RAM.
+            vm['cpu_demand'] = base_val       # e.g., 15 (Fits tightly in Med)
+            vm['memory_demand'] = base_val / 4 # e.g., 3.75
+        else:
+            # Type B: CPU Light, RAM Heavy
+            # Complementary to Type A.
+            vm['cpu_demand'] = base_val / 4    # e.g., 3.75
+            vm['memory_demand'] = base_val     # e.g., 15
+            
+    return vms
 
 
 def run_experiment_1():
     """
     Experiment 1: ILP Baseline
     - 25 VMs, 5 PMs
-    - Synthetic data
-    - Goal: Establish optimal solution baseline
+    - Synthetic data (Homogeneous)
     """
     print_header("EXPERIMENT 1: ILP Baseline (25 VMs, 5 PMs)")
     
     # Generate synthetic data
     print("\n  Generating synthetic workload...")
     vms = generate_vms(num_vms=25, seed=42)
-    pms = generate_pms(num_pms=5, cpu_capacity=100, ram_capacity=100, 
-                       heterogeneous=False, seed=42)
+    # Use Homogeneous for clear baseline comparison
+    pms = generate_homogeneous_pms(num_pms=5, cpu_capacity=100, memory_capacity=100, seed=42)
     
     print(f"  Generated: 25 VMs, 5 PMs")
     
     results = {}
     
-    # Test ILP
+    # 1. Run ILP
     print("\n  Testing ILP (optimal solver)...")
-    ilp = ILPSolver(time_limit=300)  # 5 minutes max
+    ilp = ILPSolver(time_limit=300)
     start = time.time()
     ilp_result = ilp.place(vms, pms)
     ilp_time = time.time() - start
@@ -78,61 +121,68 @@ def run_experiment_1():
         'time': ilp_time
     }
     
-    # Test FFD
-    print("\n  Testing FFD...")
-    ffd = FirstFitDecreasing()
-    start = time.time()
-    ffd_result = ffd.place(vms, pms)
-    ffd_time = time.time() - start
-    ffd_metrics = evaluate_placement(ffd_result, vms, pms)
-    
-    print_results("FFD", ffd_metrics, ffd_time)
-    
-    # Calculate gap
-    gap = ((ffd_metrics['active_pms'] - ilp_metrics['active_pms']) / 
-           ilp_metrics['active_pms'] * 100)
-    print(f"\n  >>> Gap from Optimal: {gap:.2f}%")
-    
-    results['FFD'] = {
-        'active_pms': ffd_metrics['active_pms'],
-        'energy': ffd_metrics['total_energy'],
-        'cpu_util': ffd_metrics['avg_cpu_utilization'],
-        'time': ffd_time,
-        'gap': gap
+    # 2. Run others
+    algorithms = {
+        'FFD': FirstFitDecreasing(),
+        'BFD': BestFitDecreasing(),
+        'RLS-FFD': RandomizedLocalSearchFFD(max_iterations=1000)
     }
+    
+    optimal_pms = ilp_metrics['active_pms']
+    
+    for algo_name, algo in algorithms.items():
+        print(f"\n  Testing {algo_name}...")
+        start = time.time()
+        result = algo.place(vms, pms)
+        exec_time = time.time() - start
+        metrics = evaluate_placement(result, vms, pms)
+        
+        gap = 0.0
+        if optimal_pms > 0:
+            gap = ((metrics['active_pms'] - optimal_pms) / optimal_pms * 100)
+        
+        print_results(algo_name, metrics, exec_time, gap)
+        
+        results[algo_name] = {
+            'active_pms': metrics['active_pms'],
+            'energy': metrics['total_energy'],
+            'cpu_util': metrics['avg_cpu_utilization'],
+            'time': exec_time,
+            'gap': gap
+        }
     
     return results
 
 
 def run_experiment_2():
     """
-    Experiment 2: Real Workload
-    - 80 VMs, 15 PMs
-    - PlanetLab 20110303
-    - Goal: Compare algorithms on real data
+    Experiment 2: Real Workload (Stress Test)
+    - 80 VMs, 60 PMs
+    - Skewed Resources
     """
-    print_header("EXPERIMENT 2: Real Workload (80 VMs, 15 PMs)")
+    print_header("EXPERIMENT 2: Real Workload Stress Test (80 VMs)")
     
-    # Load PlanetLab data
     loader = PlanetLabLoader("data/planetlab")
     
     try:
         vms = loader.load_vms('20110303', num_vms=80, time_point=144, seed=42)
+        vms = fix_vm_keys(vms)
+        # Apply the logic that makes it hard
+        vms = apply_stress_test_logic(vms)
     except FileNotFoundError:
         print("\n  ❌ Error: PlanetLab dataset not found!")
-        print("  Please download it first:")
-        print("    cd data")
-        print("    git clone https://github.com/beloglazov/planetlab-workload-traces.git planetlab")
         return None
     
-    pms = generate_pms(num_pms=15, cpu_capacity=100, ram_capacity=100, 
-                       heterogeneous=False, seed=42)
+    # Use Heterogeneous PMs
+    # Increase count to 60 to ensure we have enough "buckets" for these large items
+    print("\n  Generating Heterogeneous PMs...")
+    pms = generate_pms(num_pms=60, seed=42)
     
     results = {}
     algorithms = {
         'FFD': FirstFitDecreasing(),
         'BFD': BestFitDecreasing(),
-        'RLS-FFD': RandomizedLocalSearchFFD(max_iterations=100)
+        'RLS-FFD': RandomizedLocalSearchFFD(max_iterations=2000)
     }
     
     for algo_name, algo in algorithms.items():
@@ -157,30 +207,31 @@ def run_experiment_2():
 
 def run_experiment_3():
     """
-    Experiment 3: Scalability Test
-    - 150 VMs, 30 PMs
-    - PlanetLab 20110303
-    - Goal: Test algorithm scalability
+    Experiment 3: Scalability Test (Stress Test)
+    - 150 VMs, 100 PMs
+    - Skewed Resources
     """
-    print_header("EXPERIMENT 3: Scalability Test (150 VMs, 30 PMs)")
+    print_header("EXPERIMENT 3: Scalability Stress Test (150 VMs)")
     
-    # Load PlanetLab data
     loader = PlanetLabLoader("data/planetlab")
     
     try:
         vms = loader.load_vms('20110303', num_vms=150, time_point=144, seed=42)
+        vms = fix_vm_keys(vms)
+        vms = apply_stress_test_logic(vms)
     except FileNotFoundError:
         print("\n  ❌ Error: PlanetLab dataset not found!")
         return None
     
-    pms = generate_pms(num_pms=30, cpu_capacity=100, ram_capacity=100, 
-                       heterogeneous=False, seed=42)
+    # Increase PMs substantially
+    print("\n  Generating Heterogeneous PMs...")
+    pms = generate_pms(num_pms=100, seed=42)
     
     results = {}
     algorithms = {
         'FFD': FirstFitDecreasing(),
         'BFD': BestFitDecreasing(),
-        'RLS-FFD': RandomizedLocalSearchFFD(max_iterations=100)
+        'RLS-FFD': RandomizedLocalSearchFFD(max_iterations=2000)
     }
     
     for algo_name, algo in algorithms.items():
@@ -225,7 +276,7 @@ def main():
     
     all_results = {}
     
-    # Experiment 1: ILP Baseline
+    # Experiment 1
     try:
         exp1_results = run_experiment_1()
         all_results['experiment_1'] = exp1_results
@@ -233,16 +284,18 @@ def main():
         print(f"\n❌ Experiment 1 failed: {e}")
         all_results['experiment_1'] = {'error': str(e)}
     
-    # Experiment 2: Real Workload
+    # Experiment 2
     try:
         exp2_results = run_experiment_2()
         if exp2_results:
             all_results['experiment_2'] = exp2_results
     except Exception as e:
         print(f"\n❌ Experiment 2 failed: {e}")
+        import traceback
+        traceback.print_exc()
         all_results['experiment_2'] = {'error': str(e)}
     
-    # Experiment 3: Scalability
+    # Experiment 3
     try:
         exp3_results = run_experiment_3()
         if exp3_results:
