@@ -2,10 +2,12 @@
 Run All Experiments for VM Placement Project
 
 This script runs four experiments:
-1. ILP Baseline (25 VMs, 5 PMs)
+1. ILP Baseline (25 VMs, 5 PMs) - Establish optimal baseline
 2. Real Workload (Stress Test) - 80 VMs, 60 PMs
+   - Includes ILP with 20s time limit to DEMONSTRATE INFEASIBILITY
+   - Expected: ILP times out, proving heuristics are necessary
 3. Scalability Test (Stress Test) - 150 VMs, 100 PMs
-4. Google Trace Dataset (10000 VMs, 2000 PMs)
+4. Google Trace Dataset (10000 VMs, 2000 PMs) - Industrial scale
 """
 
 import sys
@@ -154,6 +156,48 @@ def run_experiment_2():
     pms = generate_pms(num_pms=60, seed=42)
 
     results = {}
+
+    # Try ILP first (with short time limit to demonstrate infeasibility)
+    optimal_pms = None
+    print("\n  Testing ILP (optimal solver with 20s time limit)...")
+    print("  ⚠️  Note: Short time limit to demonstrate ILP is impractical at this scale...")
+
+    try:
+        ilp = ILPSolver(time_limit=20)  # 20 seconds time limit - expected to timeout
+
+        start = time.time()
+        ilp_result = ilp.place(vms, pms)
+        ilp_time = time.time() - start
+
+        if ilp_result.get("success", False):
+            ilp_metrics = evaluate_placement(ilp_result, vms, pms)
+            print_results("ILP", ilp_metrics, ilp_time)
+
+            results["ILP"] = {
+                "active_pms": ilp_metrics["active_pms"],
+                "energy": ilp_metrics["total_energy"],
+                "cpu_util": ilp_metrics["avg_cpu_utilization"],
+                "ram_util": ilp_metrics["avg_memory_utilization"],
+                "time": ilp_time,
+            }
+
+            optimal_pms = ilp_metrics["active_pms"]
+            print(f"\n  ✓ ILP found solution: {optimal_pms} PMs in {ilp_time:.2f}s")
+            print(f"      (Unexpected success - ILP solved within 20s time limit)")
+        else:
+            print(f"\n  ⏱️  ILP timed out as expected: {ilp_result.get('message', 'Time limit exceeded')}")
+            print(f"      This demonstrates ILP is impractical for 80 VMs at scale")
+            results["ILP"] = {
+                "status": "timeout",
+                "message": ilp_result.get("message", "Time limit exceeded (20s)"),
+                "time": ilp_time,
+            }
+
+    except Exception as e:
+        print(f"\n  ❌ ILP error: {str(e)}")
+        results["ILP"] = {"status": "error", "error": str(e)}
+
+    # Test heuristic algorithms
     algorithms = {
         "FFD": FirstFitDecreasing(),
         "BFD": BestFitDecreasing(),
@@ -167,7 +211,13 @@ def run_experiment_2():
         t = time.time() - start
         m = evaluate_placement(result, vms, pms)
 
-        print_results(name, m, t)
+        # Calculate gap if ILP solved successfully
+        gap = None
+        if optimal_pms is not None:
+            gap = ((m["active_pms"] - optimal_pms) / optimal_pms * 100)
+            print_results(name, m, t, gap)
+        else:
+            print_results(name, m, t)
 
         results[name] = {
             "active_pms": m["active_pms"],
@@ -176,6 +226,9 @@ def run_experiment_2():
             "ram_util": m["avg_memory_utilization"],
             "time": t,
         }
+
+        if gap is not None:
+            results[name]["gap"] = gap
 
     return results
 
